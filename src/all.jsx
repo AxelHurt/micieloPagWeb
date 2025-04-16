@@ -21,15 +21,16 @@ export default function all() {
     observaciones: ""
   });
 
+  const [imagenes, setImagenes] = useState([]);
+  const [descripciones, setDescripciones] = useState([]);
+
   useEffect(() => {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
-    setFormData(prev => ({ ...prev, fecha: `${year}-${month}-${day}` }));
+    setFormData(prev => ({ ...prev, fecha: `${day}/${month}/${year}` }));
   }, []);
-
-  const [imagenes, setImagenes] = useState([]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -46,146 +47,150 @@ export default function all() {
       });
     });
 
-    Promise.all(readers).then((imgs) => setImagenes((prev) => [...prev, ...imgs]));
+    Promise.all(readers).then((imgs) => {
+      setImagenes((prev) => [...prev, ...imgs]);
+      setDescripciones((prev) => [...prev, ...imgs.map(() => "")]);
+    });
+  };
+
+  const handleDescripcionChange = (index, value) => {
+    const nuevas = [...descripciones];
+    nuevas[index] = value;
+    setDescripciones(nuevas);
   };
 
   const generarPDF = () => {
     const pdf = new jsPDF("p", "mm", "a4");
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    let y = 10;
+    let y = 20;
 
-    const drawHeader = () => {
-      const img = new Image();
-      img.src = logoImg;
-      img.onload = () => {
-        pdf.addImage(img, "PNG", 10, y, 25, 15);
-        pdf.setFontSize(12);
-        pdf.setFont(undefined, "normal");
-        pdf.text(formData.sitio, 40, y + 5);
-        pdf.text(formData.direccion, 40, y + 11);
-        pdf.text("Tel: " + formData.telefono, 40, y + 17);
+    const lineHeight = 5;
 
-        y += 30;
-        pdf.setFontSize(16);
-        pdf.setFont(undefined, "bold");
-        pdf.text(formData.titulo, pageWidth / 2, y, { align: "center" });
-        y += 10;
-
-        drawSection();
-      };
+    const drawBlankLines = (count) => {
+      y += lineHeight * count;
     };
 
-    const drawSection = () => {
-      const addLabel = (label, value) => {
-        pdf.setFontSize(12);
-        pdf.setFont(undefined, "bold");
-        pdf.text(`${label}:`, 10, y);
-        pdf.setFont(undefined, "normal");
-        pdf.text(value, 40, y);
-        y += 7;
-      };
-
-      const drawBox = (title, items) => {
-        y += 5;
-        pdf.setFont(undefined, "bold");
-        pdf.setDrawColor(0);
-        pdf.setFillColor(240);
-        pdf.rect(10, y, pageWidth - 20, 8, "F");
-        pdf.text(title, 12, y + 6);
-        y += 12;
-
-        pdf.setFont(undefined, "normal");
-        items.forEach((item) => {
-          if (y > pageHeight - 20) {
-            pdf.addPage();
-            y = 10;
-          }
-          pdf.text(item, 12, y);
-          y += 6;
-        });
-      };
-
-      addLabel("Fecha", formData.fecha);
-      addLabel("Cliente", formData.cliente);
-
-      drawBox("Datos del equipo", [
-        "- Marca: " + formData.marca,
-        "- Modelo: " + formData.modelo,
-        "- Tipo: " + formData.tipo,
-        "- Memoria: " + formData.memoria,
-        "- Almacenamiento: " + formData.almacenamiento
-      ]);
-
-      drawBox("Servicio", [
-        "- Tipo de servicio: " + formData.servicio,
-        "- Valor: " + formData.valor
-      ]);
-
-      if (formData.observaciones.trim()) {
-        const obsLines = pdf.splitTextToSize(formData.observaciones, pageWidth - 24);
-        if (y + obsLines.length * 6 > pageHeight - 30) {
-          pdf.addPage();
-          y = 10;
-        }
-        pdf.setFont(undefined, "bold");
-        pdf.setDrawColor(0);
-        pdf.setFillColor(240);
-        pdf.rect(10, y, pageWidth - 20, 8, "F");
-        pdf.text("Observaciones", 12, y + 6);
-        y += 12;
-        pdf.setFont(undefined, "normal");
-        pdf.text("- " + obsLines.join("\n"), 12, y);
-        y += obsLines.length * 6;
-      }
-
-      if (imagenes.length > 0) {
-        if (y + 70 > pageHeight) {
-          pdf.addPage();
-          y = 10;
-        }
-        pdf.setFont(undefined, "bold");
-        pdf.setDrawColor(0);
-        pdf.setFillColor(240);
-        pdf.rect(10, y, pageWidth - 20, 8, "F");
-        pdf.text("Fotos del Servicio", 12, y + 6);
-        y += 12;
-
-        let x = 10;
-        const imgWidth = (pageWidth - 30) / 2;
-        const imgHeight = 60;
-
-        imagenes.forEach((src) => {
-          const img = new Image();
-          img.src = src;
-
-          if (y + imgHeight > pageHeight - 10) {
-            pdf.addPage();
-            y = 10;
-            x = 10;
-          }
-
-          pdf.addImage(img, "JPEG", x, y, imgWidth, imgHeight);
-
-          if (x + imgWidth + 10 > pageWidth) {
-            x = 10;
-            y += imgHeight + 10;
-          } else {
-            x += imgWidth + 10;
-          }
-        });
-      }
-
-      pdf.save(`informe_${formData.cliente}.pdf`);
+    const drawText = (text, fontSize = 12, bold = false) => {
+      pdf.setFont("helvetica", bold ? "bold" : "normal");
+      pdf.setFontSize(fontSize);
+      pdf.text(text, 20, y);
+      y += lineHeight;
     };
 
-    drawHeader();
+    const drawSectionTitle = (title, size = 14) => {
+      drawText(title.toUpperCase(), size, true);
+    };
+
+    const drawLabeledLine = (label, value) => {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.text(`${label}:`, 20, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(value, 60, y);
+      y += lineHeight;
+    };
+
+    const drawTableRow = (label, value, startX = 20, endX = pageWidth - 20, rowHeight = 8) => {
+      const midX = startX + (endX - startX) * 0.3;
+      pdf.setDrawColor(0);
+      pdf.setFillColor(220);
+      pdf.rect(startX, y, midX - startX, rowHeight, "FD");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.text(label, startX + 2, y + 5);
+      pdf.setFillColor(245);
+      pdf.rect(midX, y, endX - midX, rowHeight, "FD");
+      pdf.setFont("helvetica", "normal");
+      pdf.text(value, midX + 2, y + 5);
+      y += rowHeight;
+    };
+
+    pdf.addImage(logoImg, "PNG", 20, y, 37.4, 27.9);
+    y += 30;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.text(formData.sitio, 20, y);
+    y += lineHeight;
+    pdf.text(formData.direccion, 20, y);
+    y += lineHeight;
+    pdf.text("Tel: " + formData.telefono, 20, y);
+    y += 10;
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(24);
+    drawBlankLines(2);
+    pdf.text(formData.titulo.toUpperCase(), pageWidth / 2, y, { align: "center" });
+    y += 10;
+    drawBlankLines(1);
+
+    drawLabeledLine("Fecha", formData.fecha);
+    drawLabeledLine("Cliente", formData.cliente);
+
+    drawBlankLines(2);
+    drawSectionTitle("Datos del equipo");
+    drawTableRow("Marca", formData.marca);
+    drawTableRow("Modelo", formData.modelo);
+    drawTableRow("Tipo", formData.tipo);
+    drawTableRow("Memoria", formData.memoria);
+    drawTableRow("Almacenamiento", formData.almacenamiento);
+
+    drawBlankLines(2);
+    drawSectionTitle("Servicio");
+    drawTableRow("Tipo de servicio", formData.servicio);
+    drawTableRow("Valor", formData.valor);
+
+    drawBlankLines(2);
+    drawSectionTitle("Observaciones");
+    drawBlankLines(1);
+    const obsLines = pdf.splitTextToSize(formData.observaciones, pageWidth - 40);
+    obsLines.forEach(line => drawText(line));
+    drawBlankLines(1);
+
+    if (imagenes.length > 0) {
+      pdf.addPage();
+      y = 20;
+      drawSectionTitle("Fotos del Servicio");
+      drawBlankLines(1);
+
+      const cellWidth = 85;
+      const cellHeight = 90;
+      const margin = 10;
+      const imageHeight = 60;
+      const descHeight = 10;
+
+      imagenes.forEach((src, index) => {
+        const img = new Image();
+        img.src = src;
+
+        const col = index % 2;
+        const row = Math.floor((index % 4) / 2);
+        const pageIndex = Math.floor(index / 4);
+
+        if (index % 4 === 0 && index !== 0) {
+          pdf.addPage();
+        }
+
+        const x = 20 + col * (cellWidth + margin);
+        const yPos = 40 + row * (cellHeight + margin);
+
+        pdf.setDrawColor(0);
+        pdf.rect(x, yPos, cellWidth, cellHeight);
+        pdf.addImage(img, "JPEG", x + 2, yPos + 2, cellWidth - 4, imageHeight);
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(descripciones[index] || `Foto ${index + 1}`, x + 2, yPos + imageHeight + 10);
+      });
+    }
+
+    pdf.save(`informe_${formData.cliente}.pdf`);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto bg-white p-4 sm:p-8 rounded-2xl shadow-2xl border border-gray-200">
-        <h1 className="text-2xl sm:text-3xl font-bold text-center text-blue-700 mb-6 sm:mb-8">Formulario de Reparación</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-center text-blue-700 mb-6 sm:mb-8">Formulario de Informe Técnico</h1>
 
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -265,6 +270,16 @@ export default function all() {
               onChange={handleImagenesChange}
               className="block w-full text-sm text-gray-700 border border-gray-300 rounded-md py-2 px-3"
             />
+            {imagenes.map((_, i) => (
+              <input
+                key={i}
+                type="text"
+                placeholder={`Descripción de foto ${i + 1}`}
+                value={descripciones[i] || ""}
+                onChange={(e) => handleDescripcionChange(i, e.target.value)}
+                className="mt-2 w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            ))}
           </div>
         </div>
 
