@@ -1,4 +1,3 @@
-// Código actualizado con control de carga de imágenes
 import { useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import logoImg from "./assets/logo.png";
@@ -43,13 +42,13 @@ export default function all() {
     const readers = files.map((file) => {
       return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
+        reader.onload = (e) => resolve({ src: e.target.result, file });
         reader.readAsDataURL(file);
       });
     });
 
     Promise.all(readers).then((imgs) => {
-      setImagenes((prev) => [...prev, ...imgs]);
+      setImagenes((prev) => [...prev, ...imgs.map(img => img.src)]);
       setDescripciones((prev) => [...prev, ...imgs.map(() => "")]);
     });
   };
@@ -59,6 +58,12 @@ export default function all() {
     nuevas[index] = value;
     setDescripciones(nuevas);
   };
+
+  const eliminarImagen = (index) => {
+    setImagenes((prev) => prev.filter((_, i) => i !== index));
+    setDescripciones((prev) => prev.filter((_, i) => i !== index));
+  };
+
 
   const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 
@@ -238,22 +243,20 @@ export default function all() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {["marca", "modelo", "tipo", "memoria", "almacenamiento"].map(
-              (name) => (
-                <div key={name}>
-                  <label className="block text-sm font-semibold text-gray-600 capitalize mb-1">
-                    {name}
-                  </label>
-                  <input
-                    type="text"
-                    name={name}
-                    value={formData[name]}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  />
-                </div>
-              )
-            )}
+            {["marca", "modelo", "tipo", "memoria", "almacenamiento"].map((name) => (
+              <div key={name}>
+                <label className="block text-sm font-semibold text-gray-600 capitalize mb-1">
+                  {name}
+                </label>
+                <input
+                  type="text"
+                  name={name}
+                  value={formData[name]}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+            ))}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -290,29 +293,49 @@ export default function all() {
             <label className="block text-sm font-semibold text-gray-600 mb-1">
               Subir fotos
             </label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleImagenesChange}
-              className="block w-full text-sm text-gray-700 border border-gray-300 rounded-md py-2 px-3"
-            />
-            {imagenes.map((_, i) => (
+
+            <label className="inline-block bg-gray-100 border border-gray-300 rounded-md px-4 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-200">
+              Elegir archivos...
               <input
-                key={i}
-                type="text"
-                placeholder={`Descripción de foto ${i + 1}`}
-                value={descripciones[i] || ""}
-                onChange={(e) => handleDescripcionChange(i, e.target.value)}
-                className="mt-2 w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImagenesChange}
+                className="hidden"
               />
-            ))}
+            </label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+              {imagenes.map((src, i) => (
+                <div key={i} className="relative border rounded-md p-2">
+                  <img
+                    src={src}
+                    alt={`preview-${i}`}
+                    className="w-full h-40 object-contain rounded mb-2 border"
+                  />
+                  <input
+                    type="text"
+                    placeholder={`Descripción de foto ${i + 1}`}
+                    value={descripciones[i] || ""}
+                    onChange={(e) => handleDescripcionChange(i, e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => eliminarImagen(i)}
+                    className="absolute top-2 right-2 text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="text-center">
           <button
-            onClick={generarPDF}
+            onClick={(generarPDF)}
             className="mt-8 inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg shadow-lg transition duration-200"
           >
             Generar PDF
