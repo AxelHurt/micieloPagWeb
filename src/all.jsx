@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import jsPDF from "jspdf";
+import imageCompression from 'browser-image-compression';
 import logoImg from "./assets/logo.png";
 
 export default function all() {
@@ -37,20 +38,23 @@ export default function all() {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleImagenesChange = (e) => {
+  const handleImagenesChange = async (e) => {
     const files = Array.from(e.target.files);
-    const readers = files.map((file) => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve({ src: e.target.result, file });
-        reader.readAsDataURL(file);
-      });
-    });
-
-    Promise.all(readers).then((imgs) => {
-      setImagenes((prev) => [...prev, ...imgs.map(img => img.src)]);
-      setDescripciones((prev) => [...prev, ...imgs.map(() => "")]);
-    });
+    const compressed = await Promise.all(
+      files.map(async (file) => {
+        const options = {
+          maxSizeMB: 1,
+          useWebWorker: true,
+          checkOrientation: true // ✅ esto es lo importante
+        };
+        const compressedFile = await imageCompression(file, options);
+        const src = await imageCompression.getDataUrlFromFile(compressedFile);
+        return src;
+      })
+    );
+  
+    setImagenes((prev) => [...prev, ...compressed]);
+    setDescripciones((prev) => [...prev, ...compressed.map(() => "")]);
   };
 
   const handleDescripcionChange = (index, value) => {
@@ -163,7 +167,7 @@ export default function all() {
             const margin = 10;
             const imagePadding = 4;
             const imageMaxWidth = cellWidth - imagePadding * 2;
-            const imageMaxHeight = 60;
+            const imageMaxHeight = 70;
 
             const col = index % 2;
             const row = Math.floor((index % 4) / 2);
