@@ -94,9 +94,14 @@ export default function all() {
     const drawLabeledLine = (label, value) => {
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(11);
-      pdf.text(`${label}:`, 20, y);
+      const labelText = `${label}: `;
+      const labelWidth = pdf.getTextWidth(labelText);
+    
+      pdf.text(labelText, 20, y);
+    
       pdf.setFont("helvetica", "normal");
-      pdf.text(value, 60, y);
+      pdf.text(value, 20 + labelWidth, y);
+    
       y += lineHeight;
     };
 
